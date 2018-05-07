@@ -5,18 +5,18 @@
 #define FIREBASE_AUTH "token_or_secret"
 #define WIFI_SSID "SSID"
 #define WIFI_PASSWORD "PASSWORD"
+#define FLOW_PIN 2
 
-int FLOW_PIN = 2;
-double flowRate;
+double flowRate, totalFlow;
 volatile int count; // volatile to ensure it updates correctly during the interrupt process
+
 
 void setup() {
     //setup flow sensor
     pinMode(FLOW_PIN, INPUT);
-    attachInterrupt(0, flow, RISING) // configures interrupt 0 (pin 2 on the Arduino) to run the function "flow()"
+    attachInterrupt(0, flow, RISING); // configures interrupt 0 (pin 2 on the Arduino) to run the function "flow()"
 
     Serial.begin(9600);
-
 
     WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
     Serial.print("Connecting to Wi-Fi");
@@ -45,10 +45,22 @@ void loop() {
     -multiply that by 60 to convert seconds to minutes, giving us mL / min
     -divide by 1000 to convert mL to L, giving us L / min
     */
+    totalFlow += count * 2.25;
     flowRate = (count * 2.25 * 60) / 1000; 
     
-    //write to firebase
+    Firebase.setFloat("flow_rate", flowRate);
+    if (Firebase.failed()) {
+        Serial.print("setting flow_rate failed:");
+        Serial.println(Firebase.error());  
+        return;
+    }
 
+    Firebase.setFloat("total_rate", flowRate);
+    if (Firebase.failed()) {
+        Serial.print("setting total_rate failed:");
+        Serial.println(Firebase.error());  
+        return;
+    }
 }
 
 void flow() {
